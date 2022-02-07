@@ -17,7 +17,7 @@ device = torch.device("cuda" if use_cuda else "cpu")
 
 
 def build_model():
-    
+
     model = getattr(builder, hparams.builder)(
         out_channels=hparams.out_channels,
         layers=hparams.layers,
@@ -40,11 +40,8 @@ def build_model():
     return model
 
 
-
 def wavegen(model, c=None, tqdm=tqdm):
-    """Generate waveform samples by WaveNet.
-    
-    """
+    """Generate waveform samples by WaveNet."""
 
     model.eval()
     model.make_generation_fast_()
@@ -65,8 +62,15 @@ def wavegen(model, c=None, tqdm=tqdm):
 
     with torch.no_grad():
         y_hat = model.incremental_forward(
-            initial_input, c=c, g=None, T=length, tqdm=tqdm, softmax=True, quantize=True,
-            log_scale_min=hparams.log_scale_min)
+            initial_input,
+            c=c,
+            g=None,
+            T=length,
+            tqdm=tqdm,
+            softmax=True,
+            quantize=True,
+            log_scale_min=hparams.log_scale_min,
+        )
 
     y_hat = y_hat.view(-1).cpu().data.numpy()
 
