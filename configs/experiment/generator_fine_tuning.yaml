@@ -1,0 +1,83 @@
+# @package _global_
+
+# to execute this experiment run:
+# python run.py experiment=dementiabank/simple.yaml
+
+defaults:
+  - override /trainer: null # override trainer to null so it's not loaded from main config defaults...
+  - override /model: null
+  - override /datamodule: null
+  - override /callbacks: null
+  - override /logger: null
+
+# we override default configurations with nulls to prevent them from loading at all
+# instead we define all modules and their paths directly in this config,
+# so everything is stored in one place
+
+seed: 12345
+experiment_name: generator_0209
+skip_training: false # optional, must be explicitly true to skip training
+fold_idx: 0
+
+trainer:
+  _target_: pytorch_lightning.Trainer
+  gpus: 1
+  min_epochs: 1
+  max_epochs: 500
+  gradient_clip_val: 0.5
+  accumulate_grad_batches: 2
+  weights_summary: null
+  # resume_from_checkpoint: ${work_dir}/last.ckpt
+
+model:
+  _target_: src.modules.generator_module.GeneratorModule
+  lambda_cd: 1
+  dim_neck: 32
+  dim_emb: 256
+  dim_pre: 512
+  freq: 32
+  lr: 0.001
+
+# to get new cv result
+# get_pretrained:
+#   pretrained: True
+#   params: ${data_dir}/cached/dementiabank/full_speech/models/wav2vec2-attention-classifier/checkpoints/wav2vec2-attn-fold4-epoch=48.ckpt
+
+datamodule:
+  _target_: src.datamodules.dementiabank_datamodule.DementiabankDataModule
+  data_dir: "/home/dongseok/projects/autovc/wavs/dementiabank/"
+  cache_dir: "/home/dongseok/data/cached/dementiabank/full_speech/autovc.pkl"
+  split_dir: "/home/dongseok/data/cached/dementiabank/full_speech/autovc_split_keys.pkl"
+  batch_size: 4
+  run_prepare_data: False
+  num_workers: 1
+
+callbacks:
+  model_checkpoint:
+    _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    monitor: "val/g_loss"
+    save_top_k: 1
+    save_last: False
+    mode: "min"
+    dirpath: /home/dongseok/projects/autovc/test/checkpoints
+    filename: "${experiment_name}_{epoch:02d}-"
+  early_stopping:
+    _target_: pytorch_lightning.callbacks.EarlyStopping
+    monitor: "val/g_loss"
+    patience: 20
+    mode: "min"
+
+logger:
+  wandb:
+    _target_: pytorch_lightning.loggers.wandb.WandbLogger
+    project: lightning-hydra_dementiabank_generator
+    name: "dementiabank-generator-${experiment_name}-"
+    save_dir: "."
+    offline: False # set True to store all logs only locally
+    id: null # pass correct id to resume experiment!
+    entity: "silviahealth" # set to name of your wandb team or just remove it
+    log_model: False
+    prefix: ""
+    job_type: "train"
+    group: ""
+    tags: []
